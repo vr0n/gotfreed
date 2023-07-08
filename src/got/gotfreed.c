@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <elf.h>
@@ -19,6 +20,30 @@ typedef struct got_table {
   int size;
   int count;
 } got_table;
+
+void overwrite_got_entry(got_table* table, int overwrite, int* fd_mem) {
+  // Only support little endian for now
+  //char* write_val = "\xef\xbe\xad\xde\xbe\xba\xfe\xca"; // TODO: Change this obvs, when we are ready
+  char* write_val = "\x69\x62\xcc\xba\x0d\x56\x00\x00"; // This value is a test specifically for my ASLR-enabled run of example_2. Will not be transferable
+  printf("Attempting to overwrite %p -> %p\n",
+      (void*)*table->entries[overwrite]->addr,
+      (void*)*table->entries[overwrite]->val); 
+
+  lseek(*fd_mem, *table->entries[overwrite]->addr, SEEK_SET);
+
+  int write_result = write(*fd_mem, write_val, 0x8);
+  if (write_result != strlen(write_val)) {
+    printf("Something went wrong...\n");
+    printf("You very likely broke the binary...\n");
+    printf("Grab your bug out bag and GTFO!\n");
+
+    exit(1);
+  }
+  
+  printf("\nOverwrite was successful!\n");
+
+  return;
+}
 
 void read_got_table(got_table* table) {
   printf("GOT has %d entries:\n", table->count);
@@ -193,6 +218,10 @@ int main(int argc, char** argv) {
   generate_got_table(table);
   populate_got_table(table, got, fd_mem);
   read_got_table(table);
+
+  // TODO: For now, we overwrite the GOT table manually
+  int overwrite = 6; // Entry to overwrite (manually, for now)
+  overwrite_got_entry(table, overwrite, fd_mem);
 
   return 0;
 }
