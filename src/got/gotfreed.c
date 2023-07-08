@@ -10,8 +10,8 @@
 #define ELFLEN 18000 // TODO: Make this a more sane value after testing
 
 typedef struct got_entry {
-  char* addr;
-  char* val;
+  Elf64_Addr* addr;
+  Elf64_Addr* val;
 } got_entry;
 
 typedef struct got_table {
@@ -22,10 +22,28 @@ typedef struct got_table {
 
 void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
   Elf64_Addr* val = malloc(sizeof(Elf64_Addr));
-  printf("Addr: %p\n", (void*)*got);
-  lseek(*fd_mem, *got, SEEK_SET);
-  read(*fd_mem, val, sizeof(Elf64_Addr));
-  printf("Val: %p\n", (void*)*val);
+
+  for (int i = 0; i < table->size; i++) {
+    lseek(*fd_mem, *got, SEEK_SET);
+    read(*fd_mem, val, sizeof(Elf64_Addr));
+    if (*val == 0) {
+      printf("No GOT or out of entries...\n");
+      break;
+    }
+
+    // Add entry to our internal table
+    table->entries[i] = malloc(sizeof(got_entry));
+
+    table->entries[i]->addr = malloc(sizeof(Elf64_Addr));
+    table->entries[i]->addr = got;
+
+    table->entries[i]->val = malloc(sizeof(Elf64_Addr));
+    table->entries[i]->val = val;
+
+    table->count = i + 1;
+
+    *got += 0x8; // Jump to the next addr in the laziest way possible
+  }
 }
 
 void generate_got_table(got_table* table) {
