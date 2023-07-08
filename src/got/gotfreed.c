@@ -6,7 +6,35 @@
 #include <elf.h>
 
 #define COUNT 20
+#define GOTMAX 20
 #define ELFLEN 18000 // TODO: Make this a more sane value after testing
+
+typedef struct got_entry {
+  char* addr;
+  char* val;
+} got_entry;
+
+typedef struct got_table {
+  got_entry** entries;
+  int size;
+  int count;
+} got_table;
+
+void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
+  Elf64_Addr* val = malloc(sizeof(Elf64_Addr));
+  printf("Addr: %p\n", (void*)*got);
+  lseek(*fd_mem, *got, SEEK_SET);
+  read(*fd_mem, val, sizeof(Elf64_Addr));
+  printf("Val: %p\n", (void*)*val);
+}
+
+void generate_got_table(got_table* table) {
+  table->size = GOTMAX;
+  table->count = 0;
+  table->entries = (got_entry**)calloc(table->size, sizeof(got_entry*));
+
+  return;
+}
 
 Elf64_Addr get_got(unsigned char* elf, unsigned long* addr) {
   // Get header
@@ -59,13 +87,14 @@ int validate_elf(unsigned char* buf) {
   return 0;
 }
 
-void parse_elf(int* pid, unsigned long* addr) {
+Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
   int memsize = 50;
   char* mem = malloc(memsize);
   sprintf(mem, "/proc/%d/mem", *pid);
 
-  int fd_mem = open(mem, O_RDWR);
-  if (fd_mem == -1) {
+  //int fd_mem = open(mem, O_RDWR);
+  *fd_mem = open(mem, O_RDWR);
+  if (*fd_mem == -1) {
     printf("Failed to open mem file\n");
     exit(1);
   }
@@ -76,8 +105,8 @@ void parse_elf(int* pid, unsigned long* addr) {
     exit(1);
   }
 
-  lseek(fd_mem, *addr, SEEK_SET);
-  read(fd_mem, elf, ELFLEN);
+  lseek(*fd_mem, *addr, SEEK_SET);
+  read(*fd_mem, elf, ELFLEN);
 
   int fail = validate_elf(elf);
   if (fail) {
@@ -85,10 +114,7 @@ void parse_elf(int* pid, unsigned long* addr) {
     exit(1);
   }
 
-  Elf64_Addr* got = malloc(sizeof(Elf64_Addr));
-  *got = get_got(elf, addr);
-
-  printf("First GOT entry is: %p\n", (void *)*got);
+  return get_got(elf, addr);
 }
 
 int main(int argc, char** argv) {
@@ -111,7 +137,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  parse_elf(pid, addr);
+  Elf64_Addr* got = malloc(sizeof(Elf64_Addr)); // Ptr to GOT addr (not actual GOT in ELF)
+  int* fd_mem = malloc(sizeof(int)); // Descriptor to ELF
+  *got = parse_elf(pid, addr, fd_mem);
+  printf("First GOT entry is: %p\n", (void *)*got);
+
+  // If you have made it this far, we need the table for GOT entries
+  got_table* table = (got_table*)malloc(sizeof(got_table));
+  generate_got_table(table);
+  populate_got_table(table, got, fd_mem);
 
   return 0;
 }
