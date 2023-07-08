@@ -137,7 +137,7 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
 
 int main(int argc, char** argv) {
   if (argc != 3) {
-    printf("Usage: %s <addr to read from>\n", argv[0]);
+    printf("Usage: %s <pid> <first hex val from /proc/<pid>/maps>\n", argv[0]);
     return 1;
   }
 
