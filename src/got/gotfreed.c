@@ -20,6 +20,15 @@ typedef struct got_table {
   int count;
 } got_table;
 
+void read_got_table(got_table* table) {
+  printf("GOT has %d entries:\n", table->count);
+  for (int i = 0; i < table->count; i++) {
+    printf("Entry %d: %p -> %p\n", (i + 1), (void*)*table->entries[i]->addr, (void*)*table->entries[i]->val);
+  }
+
+  return;
+}
+
 void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
   Elf64_Addr* val = malloc(sizeof(Elf64_Addr));
 
@@ -27,7 +36,6 @@ void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
     lseek(*fd_mem, *got, SEEK_SET);
     read(*fd_mem, val, sizeof(Elf64_Addr));
     if (*val == 0) {
-      printf("No GOT or out of entries...\n");
       break;
     }
 
@@ -35,14 +43,19 @@ void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
     table->entries[i] = malloc(sizeof(got_entry));
 
     table->entries[i]->addr = malloc(sizeof(Elf64_Addr));
-    table->entries[i]->addr = got;
+    *table->entries[i]->addr = *got;
 
     table->entries[i]->val = malloc(sizeof(Elf64_Addr));
-    table->entries[i]->val = val;
+    *table->entries[i]->val = *val;
 
     table->count = i + 1;
 
     *got += 0x8; // Jump to the next addr in the laziest way possible
+  }
+
+  if (table->count == 0) {
+    printf("Found GOT but didn't see any entries...\n");
+    exit(1);
   }
 }
 
@@ -50,6 +63,12 @@ void generate_got_table(got_table* table) {
   table->size = GOTMAX;
   table->count = 0;
   table->entries = (got_entry**)calloc(table->size, sizeof(got_entry*));
+  if (table->entries == NULL) {
+    printf("Failed to allocate table var in generate_got_table func...\n");
+    exit(1);
+  }
+
+  printf("Populated GOT table...\n\n");
 
   return;
 }
@@ -102,6 +121,9 @@ int validate_elf(unsigned char* buf) {
     printf("Either this isn't an ELF or you are reading the wrong part of memory...\n");
     return 1;
   }
+
+  printf("ELF is an ELF...\n");
+
   return 0;
 }
 
@@ -147,6 +169,7 @@ int main(int argc, char** argv) {
     printf("Something went wrong with the PID you entered...\n");
     return 1;
   }
+  printf("PID is good...\n");
 
   unsigned long* addr = malloc(sizeof(unsigned long));
   *addr = strtoul(argv[2], NULL, 16);
@@ -154,16 +177,22 @@ int main(int argc, char** argv) {
     printf("Something went wrong with the address you entered...\n");
     return 1;
   }
+  printf("ADDR is good...\n");
 
   Elf64_Addr* got = malloc(sizeof(Elf64_Addr)); // Ptr to GOT addr (not actual GOT in ELF)
   int* fd_mem = malloc(sizeof(int)); // Descriptor to ELF
   *got = parse_elf(pid, addr, fd_mem);
-  printf("First GOT entry is: %p\n", (void *)*got);
 
   // If you have made it this far, we need the table for GOT entries
   got_table* table = (got_table*)malloc(sizeof(got_table));
+  if (table == NULL) {
+    printf("Could not allocate table var...\n");
+    exit(1);
+  }
+
   generate_got_table(table);
   populate_got_table(table, got, fd_mem);
+  read_got_table(table);
 
   return 0;
 }
