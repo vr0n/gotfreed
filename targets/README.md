@@ -31,3 +31,7 @@ The idea is to set the value that is pointed to by the `got` entry for `fflush` 
 What this means is that the next time `fflush` is called, the `got` will tell the code to jump to `false_func`.
 
 Because this is just example code, it doesn't handle anything gracefully and throws an intentional exit with a weird code (123). If everything works, you should see the return value of `example_2` equaling 123 and you should also notice that the final entry in `log.file` is "Injected log".
+
+# Note About `example_3`
+
+The final draft is being tested on `example_3` only, so if I break something that makes the previous walkthrough stop working, I apologize, but it very likely won't be fixed. 
