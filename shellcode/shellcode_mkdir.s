@@ -9,3 +9,5 @@ _start:
   mov rax, 83
 
   syscall
+
+  ret

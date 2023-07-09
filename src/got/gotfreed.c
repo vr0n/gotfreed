@@ -23,9 +23,7 @@ typedef struct got_table {
 } got_table;
 
 void overwrite_got_entry(got_table* table, int overwrite, unsigned long* code_cave, int* fd_mem) {
-  printf("Attempting to overwrite %p -> %p\n",
-      (void*)*table->entries[overwrite]->addr,
-      (void*)*table->entries[overwrite]->val); 
+  printf("Attempting to overwrite entry %d\n", overwrite);
 
   lseek(*fd_mem, *table->entries[overwrite]->addr, SEEK_SET);
 
