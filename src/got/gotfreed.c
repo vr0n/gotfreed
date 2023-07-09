@@ -157,7 +157,6 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
   char* mem = malloc(memsize);
   sprintf(mem, "/proc/%d/mem", *pid);
 
-  //int fd_mem = open(mem, O_RDWR);
   *fd_mem = open(mem, O_RDWR);
   if (*fd_mem == -1) {
     printf("Failed to open mem file\n");
@@ -172,6 +171,7 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
 
   lseek(*fd_mem, *addr, SEEK_SET);
   read(*fd_mem, elf, ELFLEN);
+  free(mem);
 
   int fail = validate_elf(elf);
   if (fail) {
@@ -182,9 +182,30 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
   return get_got(elf, addr);
 }
 
+char* get_base_addr(int* pid) {
+  char* maps = malloc(50);
+  sprintf(maps, "/proc/%d/maps", *pid);
+
+  int* fd = malloc(sizeof(int));
+  *fd = open(maps, O_RDONLY);
+  if (*fd == -1) {
+    printf("Failed to open maps file...\n");
+    exit(1);
+  }
+
+  int addr_len = 12;
+  char* addr = malloc(addr_len + 1);
+  read(*fd, addr, addr_len);
+  addr[addr_len] = '\0';
+  free(maps);
+  free(fd);
+
+  return addr;
+}
+
 int main(int argc, char** argv) {
   if (argc != 3) {
-    printf("Usage: %s <pid> <first hex val from '/proc/<pid>/maps'>\n", argv[0]);
+    printf("Usage: %s <pid> <code cave offset>\n", argv[0]); // code cave offset for example_3 is 4745
     return 1;
   }
 
@@ -196,13 +217,24 @@ int main(int argc, char** argv) {
   }
   printf("PID is good...\n");
 
-  unsigned long* addr = malloc(sizeof(unsigned long));
-  *addr = strtoul(argv[2], NULL, 16);
-  if (errno == ERANGE || errno == EINVAL || *addr == 0) {
-    printf("Something went wrong with the address you entered...\n");
+  unsigned long* cave_offset = malloc(sizeof(unsigned long));
+  *cave_offset = strtoul(argv[2], NULL, 10);
+  if (errno == ERANGE || errno == EINVAL || *cave_offset == 0) {
+    printf("Something went wrong with the code cave offset...\n");
     return 1;
   }
-  printf("ADDR is good...\n");
+
+  unsigned long* addr = malloc(sizeof(unsigned long));
+  char* base_addr = get_base_addr(pid);
+
+  *addr = strtoul(base_addr, NULL, 16);
+  if (errno == ERANGE || errno == EINVAL || *addr == 0) {
+    printf("Something went wrong converting the base addr from a string...\n");
+    return 1;
+  }
+
+  unsigned long* code_cave = malloc(sizeof(unsigned long));
+  *code_cave = *addr + *cave_offset;
 
   Elf64_Addr* got = malloc(sizeof(Elf64_Addr)); // Ptr to GOT addr (not actual GOT in ELF)
   int* fd_mem = malloc(sizeof(int)); // Descriptor to ELF
@@ -222,6 +254,8 @@ int main(int argc, char** argv) {
   // TODO: For now, we overwrite the GOT table manually
   int overwrite = 6; // Entry to overwrite (manually, for now)
   overwrite_got_entry(table, overwrite, fd_mem);
+
+  free(fd_mem);
 
   return 0;
 }
