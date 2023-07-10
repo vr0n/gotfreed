@@ -14,6 +14,7 @@
 typedef struct got_entry {
   Elf64_Addr* addr;
   Elf64_Addr* val;
+  char* symbol;
 } got_entry;
 
 typedef struct got_table {
@@ -78,6 +79,8 @@ void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem) {
     printf("Found GOT but didn't see any entries...\n");
     exit(1);
   }
+
+  free(val);
 }
 
 void generate_got_table(got_table* table) {
@@ -143,8 +146,6 @@ int validate_elf(unsigned char* buf) {
     return 1;
   }
 
-  printf("ELF is an ELF...\n");
-
   return 0;
 }
 
@@ -179,7 +180,6 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem) {
 }
 
 char* get_base_addr(int* pid) {
-  printf("In base addr func...\n");
   char* maps = malloc(50);
   sprintf(maps, "/proc/%d/maps", *pid);
 
@@ -194,8 +194,6 @@ char* get_base_addr(int* pid) {
   char* addr = malloc(addr_len + 1);
   read(*fd, addr, addr_len);
   addr[addr_len] = '\0';
-
-  printf("We got %s\n", addr);
 
   free(maps);
   free(fd);

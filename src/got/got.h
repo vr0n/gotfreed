@@ -10,6 +10,7 @@
 typedef struct got_entry {
   Elf64_Addr* addr;
   Elf64_Addr* val;
+  char* symbol;
 } got_entry;
 
 typedef struct got_table {

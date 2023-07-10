@@ -70,7 +70,6 @@ int main(int argc, char** argv) {
    * Steps 1 and 2
    */
   char* base_addr = get_base_addr(pid);
-  printf("Base addr retrieved was %s\n", base_addr);
 
   unsigned long* addr = malloc(sizeof(unsigned long));
   *addr = strtoul(base_addr, NULL, 16);
