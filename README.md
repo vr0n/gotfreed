@@ -24,8 +24,8 @@ The aforementioned "previous knowledge" you must have is the following:
 
 In the below example, the first argument to `gotfreed` is the PID, followed by the code cave offset, followed by the shell code file that is going to be written to the code cave. In this case, the shell code calls `/bin/sh`. Realistically, you probably don't want to call `/bin/sh` in the shell code directly like this, but this is the easiest way to demonstrate what is happening.
 
-`example_3` is a simple logging process which is runs in the foreground until you kill it. The GOT entry I wanted to overwrite is `fflush` which was entry 9 on my system (I am not 100% how the GOT orders its entries, but in my case the entry was *always* number 9 and I expect it will always be 9 if the same GLIBC is being used on your system).
+`example_3` is a simple logging process which is run in the foreground until you kill it. The GOT entry I wanted to overwrite is `fflush` which was entry 9 on my system (I am not 100% sure how the GOT orders its entries, but since the offsets are known at compile time, I am assuming `fflush` will be entry 9 on your system as well unless we are using different library versions).
 
-The lower half of the photo shows `example_3`'s output at the time the next `fflush` is called *after* `gotfreed` has been run.
+The lower half of the photo shows `gotfreed`'s output and the upper half shows `example_3`'s output before the GOT overwrite followed by us getting the shell after the GOT overwrite.
 
 ![example](./pics/example_3_2.png)

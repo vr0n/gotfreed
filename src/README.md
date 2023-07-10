@@ -10,6 +10,7 @@ make
 
 - [ ] Add ability to restore code cave (in case it is not a code cave)
 - [ ] Can we grab the symbols for the GOT entries?
+- [ ] Add a `--parse` option to just read the GOT and its symbols without overwriting
 - [X] Break out GOT functions to separate lib
 - [X] Let user select GOT entry at runtime instead of compile time
 - [X] Handle code cave
