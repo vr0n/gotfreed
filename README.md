@@ -22,7 +22,7 @@ The aforementioned "previous knowledge" you must have is the following:
 2. You have to know the offset from the base address of the code cave you want to overwrite
 3. What GOT entries are expected to be in the process and which one you want to overwrite (ideally, one that is called as frequently as you want)
 
-In the below example, The first argument to `got` is the PID, followed by the code cave offset, followed by the shell code file that is going to be written to the code cave. In this case, the shell code calls `/bin/sh`. Realistically, you probably don't want to call `/bin/sh` in the shell code directly like this, but this is the easiest way to demonstrate what is happening.
+In the below example, the first argument to `got` is the PID, followed by the code cave offset, followed by the shell code file that is going to be written to the code cave. In this case, the shell code calls `/bin/sh`. Realistically, you probably don't want to call `/bin/sh` in the shell code directly like this, but this is the easiest way to demonstrate what is happening.
 
 `example_3` is a simple logging process which is runs in the foreground until you kill it. The GOT entry I wanted to overwrite is `fflush` which was entry 9 on my system (I am not 100% how the GOT orders its entries, but in my case the entry was *always* number 9 and I expect it will always be 9 if the same GLIBC is being used on your system).
 
