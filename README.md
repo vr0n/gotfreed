@@ -28,4 +28,4 @@ In the below example, The first argument to `got` is the PID, followed by the co
 
 The lower half of the photo shows `example_3`'s output at the time the next `fflush` is called *after* `got` has been run.
 
-![example](./pics/example_3.png)
+![example](./pics/example_3_2.png)
