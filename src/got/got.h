@@ -19,9 +19,9 @@ typedef struct got_table {
   int count;
 } got_table;
 
-void overwrite_got_entry(got_table* table, int overwrite, unsigned long* code_cave, int* fd_mem);
-
 void read_got_table(got_table* table);
+
+void overwrite_got_entry(got_table* table, unsigned long* code_cave, int* fd_mem);
 
 void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem);
 

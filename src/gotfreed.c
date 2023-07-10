@@ -103,7 +103,6 @@ int main(int argc, char** argv) {
 
   generate_got_table(table);
   populate_got_table(table, got, fd_mem);
-  read_got_table(table);
 
   /*
    * Step 6
@@ -113,9 +112,7 @@ int main(int argc, char** argv) {
   /*
    * Step 7
    */
-  // TODO: For now, we overwrite the GOT table manually
-  int overwrite = 9; // Entry to overwrite (manually, for now)
-  overwrite_got_entry(table, overwrite, code_cave, fd_mem);
+  overwrite_got_entry(table, code_cave, fd_mem);
 
   free(fd_mem);
 
