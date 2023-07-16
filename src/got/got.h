@@ -19,9 +19,9 @@ typedef struct got_table {
   int count;
 } got_table;
 
-void read_got_table(got_table* table);
+int* read_got_table(got_table* table, int* overwrite);
 
-void overwrite_got_entry(got_table* table, unsigned long* code_cave, int* fd_mem);
+void overwrite_got_entry(got_table* table, unsigned long* code_cave, int* fd_mem, int* overwrite);
 
 void populate_got_table(got_table* table, Elf64_Addr* got, int* fd_mem);
 
@@ -33,4 +33,4 @@ Elf64_Addr parse_elf(int* pid, unsigned long* addr, int* fd_mem);
 
 char* get_base_addr(int* pid);
 
-void write_to_cave(unsigned long* code_cave, char* shell_code, int* size, int* fd_mem);
+void write_to_cave(unsigned long* code_cave, char* shell_code, int* size, int* fd_mem, got_table* table, int* overwrite);
